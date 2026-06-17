@@ -476,6 +476,190 @@ results_human_base <- Filter(Negate(is.null), results_human_base)
 message("✓ HT29 baseline-контрастов: ", length(results_human_base))
 
 # =============================================================================
+# БЛОК B4: DESeq2 fit HT29 → dds + vst_mat
+# =============================================================================
+message("\n══ БЛОК B4: DESeq2 fit HT29 ══")
+
+dds_human <- tryCatch({
+  dds_obj <- build_dds(norm_counts_human, coldata_human, ~ genotype)
+  message("  ✓ dds_human: ",
+          nrow(DESeq2::counts(dds_obj)), " генов, ",
+          ncol(DESeq2::counts(dds_obj)), " образцов")
+  message("  Контрасты: ", paste(DESeq2::resultsNames(dds_obj), collapse = ", "))
+  dds_obj
+}, error = function(e) {
+  message("  ⚠ dds_human не собран: ", e$message)
+  NULL
+})
+
+vst_mat_human <- tryCatch({
+  vst_h <- DESeq2::vst(dds_human, blind = FALSE)
+  mat   <- SummarizedExperiment::assay(vst_h)
+  message("  ✓ vst_mat_human: ", nrow(mat), " × ", ncol(mat))
+  mat
+}, error = function(e) {
+  message("  ⚠ VST HT29 недоступен: ", e$message, " — используем log2(norm+1)")
+  log2(as.matrix(norm_counts_human) + 1)
+})
+
+if (!is.null(dds_human)) {
+  saveRDS(dds_human, "output/rds/dds_human.rds")
+  message("  ✓ dds_human.rds сохранён")
+}
+
+
+# =============================================================================
+# БЛОК A4: DESeq2 fit MC-38 → dds + vst_mat
+# Используем norm_counts (уже нормализованные) только для VST-матрицы.
+# dds собираем из round(norm_counts) — достаточно для resultsNames() и VST.
+# Если доступны raw_counts — предпочтительнее использовать их.
+# =============================================================================
+message("\n══ БЛОК A4: DESeq2 fit MC-38 ══")
+
+# Более строгий фильтр перед DESeq
+build_dds <- function(norm_counts_df, coldata_df, design_formula = ~ genotype) {
+  shared <- intersect(coldata_df$sample_id, colnames(norm_counts_df))
+  if (length(shared) == 0) stop("Нет общих образцов")
+
+  cd <- coldata_df %>%
+    dplyr::filter(sample_id %in% shared) %>%
+    dplyr::arrange(match(sample_id, shared)) %>%
+    as.data.frame()
+  rownames(cd) <- cd$sample_id
+
+  cnt <- round(as.matrix(norm_counts_df[, shared]))
+
+  # Фильтр 1: убираем нули
+  cnt <- cnt[rowSums(cnt) > 0, ]
+  # Фильтр 2: убираем гены с нулевой вариабельностью (все значения одинаковы)
+  cnt <- cnt[apply(cnt, 1, function(x) length(unique(x)) > 1), ]
+  # Фильтр 3: минимальный count ≥ 10 хотя бы в одном образце
+  cnt <- cnt[apply(cnt, 1, max) >= 10, ]
+
+  message("  После фильтрации: ", nrow(cnt), " генов")
+
+  dds_obj <- DESeq2::DESeqDataSetFromMatrix(
+    countData = cnt,
+    colData   = cd,
+    design    = design_formula
+  )
+
+  # DESeq с explicit size factors (т.к. rounded norm counts)
+  DESeq2::sizeFactors(dds_obj) <- rep(1, ncol(dds_obj))  # уже нормализованы
+  dds_obj <- DESeq2::estimateDispersions(dds_obj)
+  dds_obj <- DESeq2::nbinomWaldTest(dds_obj)
+
+  dds_obj
+}
+
+# Для MC-38 используем только basal-образцы (n≥2) — они дают стабильный fit
+# TNF-образцы (n=1) включаем только если хотим ~genotype+tnf дизайн
+# По умолчанию: ~ genotype на basal, затем отдельный объект с TNF
+
+dds_mouse_basal <- tryCatch({
+  coldata_basal <- coldata_mouse %>% dplyr::filter(tnf == "basal")
+  dds_obj <- build_dds(norm_counts_mouse, coldata_basal, ~ genotype)
+  message("  ✓ dds_mouse_basal: ",
+          nrow(DESeq2::counts(dds_obj)), " генов, ",
+          ncol(DESeq2::counts(dds_obj)), " образцов")
+  message("  Контрасты: ", paste(DESeq2::resultsNames(dds_obj), collapse = ", "))
+  dds_obj
+}, error = function(e) {
+  message("  ⚠ dds_mouse_basal не собран: ", e$message)
+  NULL
+})
+
+# Дополнительно: dds со всеми образцами (включая TNF) → дизайн ~genotype+tnf
+dds_mouse_full <- tryCatch({
+  # TNF-образцы имеют n=1 — включаем в дизайн как фактор, но без interaction
+  coldata_full <- coldata_mouse %>%
+    dplyr::mutate(genotype = factor(as.character(genotype),
+                                    levels = c("WT","PPM1D_KO","PPM1B_KO","DKO")))
+  dds_obj <- build_dds(norm_counts_mouse, coldata_full, ~ genotype + tnf)
+  message("  ✓ dds_mouse_full:  ",
+          nrow(DESeq2::counts(dds_obj)), " генов, ",
+          ncol(DESeq2::counts(dds_obj)), " образцов")
+  message("  Контрасты: ", paste(DESeq2::resultsNames(dds_obj), collapse = ", "))
+  dds_obj
+}, error = function(e) {
+  message("  ⚠ dds_mouse_full не собран: ", e$message)
+  NULL
+})
+
+# VST-матрица — предпочитаем basal dds, fallback на full
+dds_for_vst_mouse <- if (!is.null(dds_mouse_basal)) dds_mouse_basal else dds_mouse_full
+
+vst_mouse <- tryCatch({
+  # blind=FALSE: используем дизайн для дисперсий (более корректно для heatmap)
+  DESeq2::vst(dds_for_vst_mouse, blind = FALSE)
+}, error = function(e) {
+  message("  ⚠ vst() не удался, пробуем varianceStabilizingTransformation...")
+  tryCatch(
+    DESeq2::varianceStabilizingTransformation(dds_for_vst_mouse, blind = FALSE),
+    error = function(e2) {
+      message("  ⚠ VST полностью недоступен: ", e2$message)
+      NULL
+    }
+  )
+})
+
+vst_mat_mouse <- if (!is.null(vst_mouse)) {
+  mat <- SummarizedExperiment::assay(vst_mouse)
+  message("  ✓ vst_mat_mouse: ", nrow(mat), " × ", ncol(mat))
+  mat
+} else {
+  # Fallback: log2(norm_counts + 1)
+  message("  ⚠ VST недоступен — используем log2(norm+1) как vst_mat")
+  log2(as.matrix(norm_counts_mouse) + 1)
+}
+
+# Дополняем vst_mat TNF-образцами через predict VST (если они есть в norm_counts)
+tnf_samples_available <- intersect(
+  c("BD12","BD13","BD14"),
+  colnames(norm_counts_mouse)
+)
+
+if (length(tnf_samples_available) > 0 && !is.null(vst_mouse)) {
+  # predict() для новых образцов используя уже посчитанный VST fit
+  tnf_counts <- round(as.matrix(norm_counts_mouse[rownames(vst_mat_mouse),
+                                                  tnf_samples_available]))
+  # DESeq2::varianceStabilizingTransformation с параметрами из обученного dds
+  tnf_vst <- DESeq2::getVarianceStabilizedData(dds_for_vst_mouse)  # все гены
+  # Более простой подход: log2 трансформация с offset от VST
+  # Используем функцию vst напрямую на TNF-образцах
+  dds_tnf_tmp <- DESeq2::DESeqDataSetFromMatrix(
+    countData = tnf_counts[rowSums(tnf_counts) > 0, ],
+    colData   = coldata_mouse %>%
+      dplyr::filter(sample_id %in% tnf_samples_available) %>%
+      as.data.frame() %>%
+      tibble::column_to_rownames("sample_id"),
+    design    = ~ 1   # нет факторов (n=1 на группу)
+  )
+  DESeq2::sizeFactors(dds_tnf_tmp) <- rep(1, ncol(dds_tnf_tmp))
+  tnf_vst_mat <- DESeq2::normTransform(dds_tnf_tmp)  # log2(count+1) нормированный
+  tnf_vst_vals <- SummarizedExperiment::assay(tnf_vst_mat)
+
+  # Выравниваем гены и объединяем
+  common_genes <- intersect(rownames(vst_mat_mouse), rownames(tnf_vst_vals))
+  vst_mat_mouse <- cbind(
+    vst_mat_mouse[common_genes, ],
+    tnf_vst_vals[common_genes, ]
+  )
+  message("  ✓ vst_mat_mouse дополнен TNF: итого ", ncol(vst_mat_mouse), " образцов")
+}
+
+# Сохраняем отдельный dds RDS (для скрипта 07)
+if (!is.null(dds_mouse_basal)) {
+  saveRDS(dds_mouse_basal, "output/rds/dds_mouse_basal.rds")
+  message("  ✓ dds_mouse_basal.rds сохранён")
+}
+if (!is.null(dds_mouse_full)) {
+  saveRDS(dds_mouse_full, "output/rds/dds_mouse_full.rds")
+  message("  ✓ dds_mouse_full.rds  сохранён")
+}
+
+
+# =============================================================================
 # СВОДНЫЕ ТАБЛИЦЫ DEG
 # =============================================================================
 
@@ -665,6 +849,9 @@ pipeline_mouse <- list(
   organism     = "mouse",
   cell_line    = "MC38",
   norm_counts  = norm_counts_mouse,
+  vst_mat      = vst_mat_mouse,           # ← ДОБАВЛЕНО
+  dds          = dds_mouse_basal,          # ← ДОБАВЛЕНО (основной для DE)
+  dds_full     = dds_mouse_full,           # ← ДОБАВЛЕНО (с TNF)
   coldata      = coldata_mouse,
   results_base = results_mouse_base,
   results_tnf  = results_mouse_tnf,
@@ -675,6 +862,7 @@ pipeline_mouse <- list(
     date             = Sys.Date(),
     note_ppm1d       = "WIP1 = PPM1D (HGNC:9277); NOT PPM1A",
     note_exploratory = "TNF contrasts n=1: trend direction only",
+    note_dds         = "dds_basal: ~genotype, basal only; dds_full: ~genotype+tnf, all samples",
     contrasts_base   = names(results_mouse_base),
     contrasts_tnf    = names(results_mouse_tnf)
   )
@@ -685,9 +873,11 @@ pipeline_human <- list(
   organism     = "human",
   cell_line    = "HT29",
   norm_counts  = norm_counts_human,
+  vst_mat      = vst_mat_human,           # ← ДОБАВЛЕНО
+  dds          = dds_human,               # ← ДОБАВЛЕНО
   coldata      = coldata_human,
   results_base = results_human_base,
-  results_tnf  = list(),           # TNF не предусмотрен для HT29
+  results_tnf  = list(),
   all_de       = bind_rows(results_human_base),
   params       = list(
     FDR            = FDR,
@@ -726,6 +916,14 @@ test_h <- readRDS("output/rds/pipeline_human.rds")
 test_a <- readRDS("output/rds/pipeline_all.rds")
 
 message("\n══ ФИНАЛЬНАЯ ПРОВЕРКА ══")
+message("MC-38  vst_mat    : ",
+        nrow(test_m$vst_mat), " × ", ncol(test_m$vst_mat))
+message("MC-38  dds        : ",
+        ifelse(is.null(test_m$dds), "ОТСУТСТВУЕТ ⚠", "OK ✓"))
+message("HT29   vst_mat    : ",
+        nrow(test_h$vst_mat), " × ", ncol(test_h$vst_mat))
+message("HT29   dds        : ",
+        ifelse(is.null(test_h$dds), "ОТСУТСТВУЕТ ⚠", "OK ✓"))
 message("MC-38  norm_counts : ",
         nrow(test_m$norm_counts), " × ", ncol(test_m$norm_counts))
 message("MC-38  baseline    : ", length(test_m$results_base),

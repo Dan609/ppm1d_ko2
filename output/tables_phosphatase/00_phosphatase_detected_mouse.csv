@@ -1,0 +1,46 @@
+"gene","class","ko_target"
+"Ppm1d","PPM/PP2C",TRUE
+"Ppm1a","PPM/PP2C",FALSE
+"Ppm1b","PPM/PP2C",TRUE
+"Ppm1f","PPM/PP2C",FALSE
+"Ppm1g","PPM/PP2C",FALSE
+"Ppm1h","PPM/PP2C",FALSE
+"Ppp1ca","PPP",FALSE
+"Ppp1cb","PPP",FALSE
+"Ppp1cc","PPP",FALSE
+"Ppp2ca","PPP",FALSE
+"Ppp2cb","PPP",FALSE
+"Ppp3ca","PPP",FALSE
+"Ppp3cb","PPP",FALSE
+"Ptpn1","PTPN (non-receptor)",FALSE
+"Ptpn2","PTPN (non-receptor)",FALSE
+"Ptpn3","PTPN (non-receptor)",FALSE
+"Ptpn4","PTPN (non-receptor)",FALSE
+"Ptpn9","PTPN (non-receptor)",FALSE
+"Ptpn11","PTPN (non-receptor)",FALSE
+"Ptpn12","PTPN (non-receptor)",FALSE
+"Ptpn14","PTPN (non-receptor)",FALSE
+"Ptpn21","PTPN (non-receptor)",FALSE
+"Ptpn23","PTPN (non-receptor)",FALSE
+"Ptpra","PTPR (receptor)",FALSE
+"Ptpre","PTPR (receptor)",FALSE
+"Ptprg","PTPR (receptor)",FALSE
+"Ptprj","PTPR (receptor)",FALSE
+"Ptprk","PTPR (receptor)",FALSE
+"Ptprm","PTPR (receptor)",FALSE
+"Ptprn","PTPR (receptor)",FALSE
+"Ptprq","PTPR (receptor)",FALSE
+"Ptprs","PTPR (receptor)",FALSE
+"Ptprt","PTPR (receptor)",FALSE
+"Ptpru","PTPR (receptor)",FALSE
+"Acp1","ACP/ALP",FALSE
+"Acp2","ACP/ALP",FALSE
+"Acp5","ACP/ALP",FALSE
+"Dusp1","DUSP",FALSE
+"Dusp4","DUSP",FALSE
+"Dusp6","DUSP",FALSE
+"Dusp10","DUSP",FALSE
+"Dusp16","DUSP",FALSE
+"Ssh1","Slingshot",FALSE
+"Ssh2","Slingshot",FALSE
+"Pten","PTEN",FALSE
