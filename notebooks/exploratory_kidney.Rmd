@@ -1,0 +1,34 @@
+---
+title: 'Exploratory Analysis: Wip1KO Kidney RNA-seq'
+author: 'PPM1D Project'
+date: '`r Sys.Date()`'
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: hide
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE,
+                       message = FALSE, fig.width = 8)
+source('config/color_palettes.R')
+```
+
+## Данные
+```{r load}
+# counts <- read.csv('data/raw/counts/rawcount272829.csv',
+#                     row.names = 1)
+# metadata <- read.csv('data/raw/metadata/metadata_kidney.csv')
+```
+
+## PCA
+```{r pca}
+# dds <- readRDS('data/processed/dds_kidney.rds')
+# plotPCA(vst(dds), intgroup = 'genotype')
+```
+
+## Volcano
+```{r volcano}
+# res <- readRDS('data/processed/deseq2_results_kidney.rds')
+```

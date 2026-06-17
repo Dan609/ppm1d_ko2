@@ -1,0 +1,31 @@
+# Параметры анализа: почки Wip1KO
+model_type: kidney_WipKO
+
+data:
+  counts:   data/raw/counts/rawcount272829.csv
+  metadata: data/raw/metadata/metadata_kidney.csv
+
+groups:
+  control:   WT
+  treatment: KO
+
+deseq2:
+  fdr_threshold:    0.05
+  log2fc_threshold: 1.0
+  shrinkage:        apeglm
+
+gsea:
+  gmt_hallmark: data/raw/genesets/hallmark_msigdb.gmt
+  nperm:        1000
+  min_gs_size:  15
+  max_gs_size:  500
+
+modeling:
+  n_ic_calibration: 20
+  n_ic_full:        50
+  seed:             2025
+  out_dir:          results/modeling/calibration_output
+
+output:
+  tables:  results/tables
+  figures: results/figures

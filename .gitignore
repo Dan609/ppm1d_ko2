@@ -1,0 +1,47 @@
+# ===== PPM1D-KO Project .gitignore =====
+
+# R-специфичное
+.Rhistory
+.Rapp.history
+.RData
+.Ruserdata
+*.Rproj.user/
+
+# Обработанные данные (генерируются скриптами)
+data/processed/
+
+# Результаты (генерируются скриптами, тяжёлые)
+results/
+
+# Временные файлы
+tmp/
+
+# Большие бинарные файлы данных (хранить в data/raw локально)
+*.rds
+*.RData
+data/raw/counts/*.csv
+data/raw/metadata/*.csv
+
+# НО отслеживать genesets и конфиги (маленькие)
+!data/raw/genesets/
+!data/raw/genesets/*
+
+# Системные
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Билды рукописи
+manuscript/**/*.pdf
+manuscript/**/*.log
+manuscript/**/*.aux
+
+# Notebooks outputs
+notebooks/*_files/
+notebooks/*.html
+
+# Temp
+tmp/
+*.tmp
+*.bak
+~$*
